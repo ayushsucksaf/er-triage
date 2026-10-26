@@ -1,6 +1,6 @@
 # ER Triage
 
-A small demo of an ER triage assistant. You describe a patient in plain words, and it gives back an ESI triage level, where to send them, and whether there's a bed and a specialist.
+An ER triage assistant. You describe a patient in plain words, and it gives back an ESI triage level, where to send them, and whether there's a bed and a specialist.
 
 The idea is simple: a local language model reads the text and writes the summary, and plain Python makes every actual decision. The model never picks the triage level.
 
@@ -34,7 +34,7 @@ er-triage/
 │   ├── SKILL.md          behaviour rules for the model
 │   ├── api.py            FastAPI wrapper
 │   └── requirements.txt
-├── frontend/
+├── frontend/static
 │   └── index.html        single-page UI
 ├── .gitignore
 ├── LICENSE
@@ -75,15 +75,7 @@ python app.py
 
 That runs one sample patient and prints the result. To try your own, edit the `query` at the bottom of `app.py`.
 
-To run the API and frontend:
-
-```bash
-uvicorn api:app --reload
-```
-
-Then open `http://localhost:8000/` in your browser. The API serves the frontend from
-the same origin, so opening the API root avoids a static-file 404 and does not require
-CORS configuration.
+Then open the given link from the terminal using `click + link`. It opens the local host on your default browser.
 
 ## Example output
 
