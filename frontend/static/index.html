@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ER Triage Scorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ── Clean, Clinical Healthcare Palette ── */
+:root {
+  /* Fluid, airy backgrounds */
+  --bg-body: #eef2f6; 
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --bg-input-hover: #f1f5f9;
+  
+  /* Trustworthy typography */
+  --text-main: #1e293b;
+  --text-muted: #475569;
+  --text-subtle: #94a3b8;
+  
+  /* Professional medical blues & teals */
+  --accent: #0284c7; /* Clinical Blue */
+  --accent-hover: #0369a1;
+  --accent-muted: #e0f2fe;
+  
+  /* Borders and dividers */
+  --border-light: #e2e8f0;
+  --border-input: #cbd5e1;
+  --border-focus: #38bdf8;
+  --ring: rgba(2, 132, 199, 0.15);
+  
+  /* Standardized Clinical ESI Colors (Vivid but professional, not neon) */
+  --esi-1: #dc2626; --esi-1-bg: #fef2f2; --esi-1-border: #fecaca; /* Immediate / Red */
+  --esi-2: #ea580c; --esi-2-bg: #fff7ed; --esi-2-border: #fed7aa; /* Emergent / Orange */
+  --esi-3: #ca8a04; --esi-3-bg: #fefce8; --esi-3-border: #fef08a; /* Urgent / Yellow */
+  --esi-4: #16a34a; --esi-4-bg: #f0fdf4; --esi-4-border: #bbf7d0; /* Less Urgent / Green */
+  --esi-5: #2563eb; --esi-5-bg: #eff6ff; --esi-5-border: #bfdbfe; /* Non-Urgent / Blue */
+
+  /* Structural variables */
+  --radius-xl: 20px;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --shadow-card: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-float: 0 20px 40px -10px rgba(2, 132, 199, 0.08);
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  /* A very subtle, fluid radial gradient to make the background feel less flat */
+  background-image: radial-gradient(circle at 50% 0%, #f8fafc 0%, var(--bg-body) 80%);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: clamp(24px, 6vw, 48px) 20px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ── Header Dashboard Style ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 4px;
+}
+.header-cross {
+  width: 52px; height: 52px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--border-light);
+  color: var(--accent);
+}
+.header-cross svg { stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.header-text h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text-main); }
+.header-text p  { font-size: 0.9rem; color: var(--text-muted); margin-top: 2px; font-weight: 400; }
+
+/* ── Card Container ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.8); /* Slight sheen */
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-float);
+}
+
+/* ── Form Sections ── */
+.form-section {
+  padding: 28px 32px;
+  position: relative;
+}
+.form-section::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 32px; right: 32px;
+  height: 1px;
+  background: var(--border-light);
+}
+.form-section:last-of-type::after { display: none; }
+
+.section-eyebrow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Layout & Fields ── */
+.field-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 100px;
+}
+.field.grow-2 { flex: 2; min-width: 160px; }
+.field.grow-3 { flex: 3; }
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ── Inputs ── */
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  appearance: none;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+}
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+  background: var(--bg-input-hover);
+  border-color: #cbd5e1;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  background: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--ring), inset 0 1px 2px rgba(0,0,0,0.02);
+}
+.field input::placeholder,
+.field textarea::placeholder { color: var(--text-subtle); }
+
+.field input[type="number"] {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+}
+
+.field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+/* Blood Pressure Group */
+.bp-group {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+}
+.bp-group:focus-within {
+  background: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+.bp-group input {
+  border: none;
+  background: transparent;
+  text-align: center;
+  padding: 12px 8px;
+  box-shadow: none !important;
+}
+.bp-group input:hover { background: transparent; }
+.bp-sep {
+  color: var(--text-subtle);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  padding: 0 4px;
+  user-select: none;
+}
+
+/* Units */
+.field-with-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.field-with-unit input {
+  padding-right: 48px;
+}
+.unit-tag {
+  position: absolute;
+  right: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.6;
+}
+
+/* ── Validation ── */
+.field input.invalid,
+.field select.invalid,
+.field textarea.invalid,
+.bp-group:has(input.invalid) {
+  border-color: var(--esi-1);
+  background: var(--esi-1-bg);
+}
+.field input.invalid:focus,
+.field select.invalid:focus,
+.field textarea.invalid:focus,
+.bp-group:has(input.invalid):focus-within {
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15);
+}
+.field-err {
+  font-size: 0.8rem;
+  color: var(--esi-1);
+  font-weight: 500;
+  display: none;
+  margin-top: 4px;
+}
+.field-err.show { display: block; animation: fadeIn 0.2s; }
+
+/* ── Footer / Submit ── */
+.form-footer {
+  padding: 24px 32px;
+  background: #f8fafc;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.disclaimer {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 220px;
+  line-height: 1.4;
+}
+.disclaimer svg { stroke: var(--text-subtle); fill: none; stroke-width: 2; flex-shrink: 0; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 14px 28px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+}
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.3);
+}
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── API Row ── */
+.api-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+.api-row label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.api-row input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-subtle);
+  outline: none;
+}
+.api-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--border-input);
+  transition: background 0.3s;
+}
+.api-dot.live { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+.api-dot.err  { background: var(--esi-1); }
+.api-label-text { font-size: 0.8rem; color: var(--text-subtle); font-weight: 500;}
+
+/* ── Error Banner ── */
+.error-banner {
+  background: var(--esi-1-bg);
+  border: 1px solid var(--esi-1-border);
+  color: var(--esi-1);
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: none;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.05);
+}
+.error-banner.show { display: block; }
+
+/* ── Results Wrap ── */
+.result-wrap {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+}
+.result-wrap.show {
+  display: flex;
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Map specific classes to CSS vars for JS logic */
+.result-wrap.lvl-1 { --esi-c: var(--esi-1); --esi-bg: var(--esi-1-bg); --esi-b: var(--esi-1-border); }
+.result-wrap.lvl-2 { --esi-c: var(--esi-2); --esi-bg: var(--esi-2-bg); --esi-b: var(--esi-2-border); }
+.result-wrap.lvl-3 { --esi-c: var(--esi-3); --esi-bg: var(--esi-3-bg); --esi-b: var(--esi-3-border); }
+.result-wrap.lvl-4 { --esi-c: var(--esi-4); --esi-bg: var(--esi-4-bg); --esi-b: var(--esi-4-border); }
+.result-wrap.lvl-5 { --esi-c: var(--esi-5); --esi-bg: var(--esi-5-bg); --esi-b: var(--esi-5-border); }
+
+/* ── Alert Strip ── */
+.alert-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--esi-1-bg);
+  border: 1px solid var(--esi-1-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  color: var(--esi-1);
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.08);
+}
+.alert-strip svg { stroke: var(--esi-1); fill: none; stroke-width: 2.5; flex-shrink: 0; }
+
+/* ── Score Card ── */
+.score-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.score-top {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 32px;
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(135deg, var(--esi-bg) 0%, #ffffff 100%);
+}
+.esi-badge {
+  width: 84px; height: 84px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 2px solid var(--esi-c);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--esi-c) 15%, transparent);
+  color: var(--esi-c);
+}
+.esi-badge .num { font-size: 2.8rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; line-height: 1; }
+.esi-badge .sub { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; margin-top: 4px; }
+
+.score-info { flex: 1; }
+.score-info .urgency { font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px; letter-spacing: -0.02em;}
+.score-info .wait { font-size: 1rem; color: var(--text-muted); font-weight: 500; }
+
+/* Tiles */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  background: var(--bg-card);
+}
+.tile {
+  padding: 24px 32px;
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+.tile:last-child { border-right: none; }
+@media (min-width: 521px) {
+  .tile:nth-child(2) { border-right: none; }
+  .tile:nth-child(3), .tile:nth-child(4) { border-bottom: none; }
+}
+.tile-head { font-size: 0.8rem; font-weight: 600; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.tile-body { font-size: 1.05rem; font-weight: 600; color: var(--text-main); }
+.tile-body.mono { font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+
+/* Status Pills */
+.status-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 8px;
+  font-size: 0.85rem; font-weight: 600; margin-top: 10px;
+}
+.pill-green { background: var(--esi-4-bg); color: var(--esi-4); border: 1px solid var(--esi-4-border); }
+.pill-red   { background: var(--esi-1-bg); color: var(--esi-1); border: 1px solid var(--esi-1-border); }
+.pill-amber { background: var(--esi-3-bg); color: #b45309; border: var(--esi-3-border); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+/* ── Cards (Flags & Summary) ── */
+.flags-card, .summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  box-shadow: var(--shadow-card);
+}
+.flags-head, .summary-head {
+  font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.flags-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; }
+.flag-tag {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--bg-input); border: 1px solid var(--border-light);
+  border-radius: var(--radius-md); padding: 8px 16px;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--text-main); font-weight: 500;
+}
+.flag-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--esi-c); }
+
+.warn-strip {
+  background: var(--esi-3-bg); border: 1px solid var(--esi-3-border);
+  border-radius: var(--radius-lg); padding: 16px 24px;
+  font-size: 0.95rem; color: #a16207; font-weight: 600;
+}
+
+.ai-chip {
+  background: var(--accent-muted); color: var(--accent);
+  border-radius: 8px; padding: 4px 10px;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+}
+.summary-text { font-size: 1rem; line-height: 1.7; color: var(--text-muted); }
+
+.dev-note { font-size: 0.85rem; color: var(--text-subtle); text-align: center; margin-top: 12px; font-weight: 500;}
+.dev-note span { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 6px 16px; color: var(--text-muted); box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+
+/* Responsive adjustments */
+@media (max-width: 520px) {
+  body { padding: 16px; }
+  .form-section, .score-top, .flags-card, .summary-card, .form-footer { padding: 20px; }
+  .score-top { flex-direction: column; align-items: flex-start; gap: 20px; }
+  .tiles { grid-template-columns: 1fr; }
+  .tile { border-right: none; }
+  .tile:not(:last-child) { border-bottom: 1px solid var(--border-light); }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-cross">
+      <svg width="24" height="24" viewBox="0 0 24 24"><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+    </div>
+    <div class="header-text">
+      <h1>ER Triage Scorer</h1>
+      <p>Clinical Intake Evaluation</p>
+    </div>
+  </header>
+
+  <!-- Intake Form -->
+  <form class="card" id="triage-form" onsubmit="handleSubmit(event)" novalidate>
+
+    <!-- Section 1: Patient Info -->
+    <div class="form-section">
+      <div class="section-eyebrow">Patient Details</div>
+      <div class="field-row">
+        <div class="field" style="max-width: 110px;">
+          <label for="f-age">Age</label>
+          <input type="number" id="f-age" min="0" max="130" placeholder="45" value="45">
+          <span class="field-err" id="err-age">Required</span>
+        </div>
+        <div class="field" style="max-width: 140px;">
+          <label for="f-sex">Sex</label>
+          <select id="f-sex">
+            <option value="M" selected>Male</option>
+            <option value="F">Female</option>
+            <option value="">Other</option>
+          </select>
+        </div>
+        <div class="field grow-2">
+          <label for="f-arrival">Arrival Method</label>
+          <select id="f-arrival">
+            <option value="ambulance" selected>Ambulance</option>
+            <option value="walk-in">Walk-in</option>
+            <option value="wheelchair">Wheelchair</option>
+            <option value="helicopter">Helicopter</option>
+            <option value="">Unknown</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Vitals -->
+    <div class="form-section">
+      <div class="section-eyebrow">Vitals & Assessment</div>
+      <div class="field-row">
+
+        <!-- Blood Pressure -->
+        <div class="field grow-2">
+          <label>Blood Pressure (mmHg)</label>
+          <div class="bp-group">
+            <input type="number" id="f-sys" min="40" max="300" placeholder="180" value="180" aria-label="Systolic BP">
+            <span class="bp-sep">/</span>
+            <input type="number" id="f-dia" min="20" max="200" placeholder="110" value="110" aria-label="Diastolic BP">
+          </div>
+          <span class="field-err" id="err-bp">Enter systolic / diastolic</span>
+        </div>
+
+        <!-- Heart Rate -->
+        <div class="field">
+          <label for="f-hr">Heart Rate</label>
+          <div class="field-with-unit">
+            <input type="number" id="f-hr" min="20" max="300" placeholder="72" value="122" aria-label="Heart rate bpm">
+            <span class="unit-tag">bpm</span>
+          </div>
+          <span class="field-err" id="err-hr">20–300 bpm</span>
+        </div>
+
+        <!-- SpO2 -->
+        <div class="field" style="max-width: 140px;">
+          <label for="f-spo2">SpO₂</label>
+          <div class="field-with-unit">
+            <input type="number" id="f-spo2" min="50" max="100" placeholder="98" value="96" aria-label="SpO2 percent">
+            <span class="unit-tag">%</span>
+          </div>
+          <span class="field-err" id="err-spo2">50–100 %</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: Chief Complaint -->
+    <div class="form-section">
+      <div class="section-eyebrow">Chief Complaint</div>
+      <div class="field">
+        <label for="f-complaint" style="display:none;">Chief complaint</label>
+        <textarea id="f-complaint" placeholder="Describe the primary complaint, symptoms, and relevant medical context…" rows="3">chest pain radiating to left arm, diaphoresis</textarea>
+        <span class="field-err" id="err-complaint">Required — describe the complaint</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="form-footer">
+      <p class="disclaimer">
+        <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        AI assisted routing tool. Not for final clinical decision making.
+      </p>
+      <button class="btn" type="submit" id="submit-btn">Score Triage</button>
+    </div>
+  </form>
+
+  <!-- API config -->
+  <div class="api-row">
+    <label for="api-url">Endpoint</label>
+    <input type="text" id="api-url" value="http://localhost:8000/triage" spellcheck="false" autocomplete="off">
+    <div class="api-dot" id="api-dot"></div>
+    <span class="api-label-text" id="api-label">Ready</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- Results wrapper -->
+  <div class="result-wrap" id="result-wrap">
+
+    <div class="alert-strip" id="alert-strip" hidden>
+      <svg width="24" height="24" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      ESI LEVEL 1 — IMMEDIATE RESPONSE REQUIRED
+    </div>
+
+    <div class="score-card">
+      <div class="score-top">
+        <div class="esi-badge">
+          <span class="num" id="esi-num">—</span>
+          <span class="sub">ESI</span>
+        </div>
+        <div class="score-info">
+          <div class="urgency" id="urgency-label">—</div>
+          <div class="wait" id="wait-label">—</div>
+        </div>
+      </div>
+      <div class="tiles">
+        <div class="tile">
+          <div class="tile-head">Department Route</div>
+          <div class="tile-body" id="dept-val">—</div>
+        </div>
+        <div class="tile">
+          <div class="tile-head">Specialist Consult</div>
+          <div class="tile-body" id="spec-val">—</div>
+        </div>
+        <div class="tile">
+          <div class="tile-head">Bed Availability</div>
+          <div class="tile-body" id="admit-val">—</div>
+        </div>
+        <div class="tile">
+          <div class="tile-head">AI Confidence</div>
+          <div class="tile-body mono" id="conf-val">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flags-card" id="flags-card">
+      <div class="flags-head">Triggered Clinical Flags</div>
+      <ul class="flags-list" id="flags-list"></ul>
+    </div>
+
+    <div class="warn-strip" id="low-conf-strip" hidden>
+      ⚠ Low-confidence score — chief complaint was vague or ambiguous. Recommend clinician review before routing.
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-head">
+        Clinical Summary <span class="ai-chip">AI GENERATED</span>
+      </div>
+      <p class="summary-text" id="summary-text">—</p>
+    </div>
+
+    <p class="dev-note" id="dev-note" hidden>
+      <span>⚙ Showing fallback demo data — backend unreachable</span>
+    </p>
+  </div>
+
+</div>
+
+<!-- THE JAVASCRIPT REMAINS 100% UNCHANGED AND IDENTICAL TO ORIGINAL -->
+<script>
+const DEPT_NAMES = { resus_bay: "Resus Bay", trauma_bay: "Trauma Bay", main_ed: "Main ED", fast_track: "Fast Track" };
+const ESI_META  = {
+  1: { wait: "Immediate — 0 min wait",    lvl: "lvl-1" },
+  2: { wait: "Est. wait: < 10 minutes",   lvl: "lvl-2" },
+  3: { wait: "Est. wait: < 30 minutes",   lvl: "lvl-3" },
+  4: { wait: "Est. wait: < 60 minutes",   lvl: "lvl-4" },
+  5: { wait: "Est. wait: < 120 minutes",  lvl: "lvl-5" },
+};
+const DEMO = {
+  esi_level: 2, urgency_label: "EMERGENT", routed_to: "resus_bay",
+  triggered_flags: ["high_risk_complaint: chest pain", "systolic_bp > 180", "heart_rate > 120"],
+  esi1_alert: false, low_confidence: false, can_admit: false,
+  specialist: "Dr. Mehta (Cardiologist)", specialist_status: "on_call",
+  summary: "Patient is a 45-year-old male arriving by ambulance with severely elevated blood pressure (180/110 mmHg), elevated heart rate (122 bpm), and chest pain radiating to the left arm with diaphoresis. The scoring tool flagged a high-risk complaint keyword and critical vital signs. Routed to Resus Bay — Resus Bay currently reports no available beds; escalation or overflow protocol may be required."
+};
+
+function f(id) { return document.getElementById(id); }
+
+function buildQuery() {
+  const age      = f("f-age").value.trim();
+  const sex      = f("f-sex").value;
+  const arrival  = f("f-arrival").value;
+  const sys      = f("f-sys").value.trim();
+  const dia      = f("f-dia").value.trim();
+  const hr       = f("f-hr").value.trim();
+  const spo2     = f("f-spo2").value.trim();
+  const complaint = f("f-complaint").value.trim();
+
+  const parts = [];
+  if (age) parts.push(`${age}${sex}`);
+  if (arrival) parts.push(arrival);
+  if (sys && dia) parts.push(`BP ${sys}/${dia}`);
+  if (hr) parts.push(`HR ${hr}`);
+  if (spo2) parts.push(`SpO2 ${spo2}%`);
+  if (complaint) parts.push(complaint);
+  return parts.join(", ");
+}
+
+function validate() {
+  let ok = true;
+  const checks = [
+    { el: f("f-age"),       err: "err-age",       test: v => v && +v >= 0 && +v <= 130 },
+    { el: f("f-sys"),       err: "err-bp",        test: v => !v || (+v >= 40 && +v <= 300) },
+    { el: f("f-hr"),        err: "err-hr",        test: v => !v || (+v >= 20 && +v <= 300) },
+    { el: f("f-spo2"),      err: "err-spo2",      test: v => !v || (+v >= 50 && +v <= 100) },
+    { el: f("f-complaint"), err: "err-complaint", test: v => v.trim().length > 0 },
+  ];
+  checks.forEach(({ el, err, test }) => {
+    const pass = test(el.value);
+    el.classList.toggle("invalid", !pass);
+    f(err).classList.toggle("show", !pass);
+    if (!pass) ok = false;
+  });
+  return ok;
+}
+
+function clearValidation() {
+  ["f-age","f-sex","f-arrival","f-sys","f-dia","f-hr","f-spo2","f-complaint"].forEach(id => {
+    f(id).classList.remove("invalid");
+  });
+  ["err-age","err-bp","err-hr","err-spo2","err-complaint"].forEach(id => {
+    f(id).classList.remove("show");
+  });
+}
+
+function setApi(state, text) {
+  f("api-dot").className = "api-dot" + (state === "live" ? " live" : state === "err" ? " err" : "");
+  f("api-label").textContent = text;
+}
+
+function render(data, isDemoFallback) {
+  const wrap = f("result-wrap");
+  const meta = ESI_META[data.esi_level] || ESI_META[3];
+  [1,2,3,4,5].forEach(n => wrap.classList.remove(`lvl-${n}`));
+  wrap.classList.add(meta.lvl, "show");
+
+  f("esi-num").textContent = data.esi_level ?? "—";
+  f("urgency-label").textContent = data.urgency_label || "—";
+  f("wait-label").textContent = meta.wait;
+  f("alert-strip").hidden = !data.esi1_alert;
+
+  f("dept-val").textContent = DEPT_NAMES[data.routed_to || ""] || data.routed_to || "—";
+
+  const specEl = f("spec-val");
+  specEl.innerHTML = "";
+  if (data.specialist) {
+    specEl.textContent = data.specialist;
+    const isIn = data.specialist_status === "in_house";
+    const pill = document.createElement("span");
+    pill.className = `status-pill ${isIn ? "pill-green" : "pill-amber"}`;
+    const dot = document.createElement("span"); dot.className = "status-dot";
+    pill.append(dot, isIn ? "In house" : "On call");
+    specEl.append(document.createElement("br"), pill);
+  } else specEl.textContent = "—";
+
+  const admitEl = f("admit-val");
+  admitEl.innerHTML = "";
+  if (data.can_admit !== undefined && data.can_admit !== null) {
+    const pill = document.createElement("span");
+    pill.className = `status-pill ${data.can_admit ? "pill-green" : "pill-red"}`;
+    const dot = document.createElement("span"); dot.className = "status-dot";
+    pill.append(dot, data.can_admit ? "Bed available" : "No bed available");
+    admitEl.appendChild(pill);
+  } else admitEl.textContent = "—";
+
+  f("conf-val").textContent = data.low_confidence ? "Low — review" : "Normal";
+
+  const list = f("flags-list");
+  list.innerHTML = "";
+  (data.triggered_flags || []).forEach(flag => {
+    const li = document.createElement("li"); li.className = "flag-tag";
+    const dot = document.createElement("span"); dot.className = "flag-dot";
+    li.append(dot, flag); list.appendChild(li);
+  });
+  f("flags-card").style.display = (data.triggered_flags || []).length ? "" : "none";
+  f("low-conf-strip").hidden = !data.low_confidence;
+  f("summary-text").textContent = data.summary || "No summary returned from model.";
+  f("dev-note").hidden = !isDemoFallback;
+
+  wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function handleSubmit(e) {
+  e.preventDefault();
+  clearValidation();
+  if (!validate()) return;
+
+  const query  = buildQuery();
+  const btn    = f("submit-btn");
+  const errBanner = f("error-banner");
+  errBanner.classList.remove("show");
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>&nbsp; Scoring…';
+
+  const url = f("api-url").value.trim();
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}${txt ? ": " + txt.slice(0, 120) : ""}`);
+    }
+    const data = await res.json();
+    setApi("live", "connected");
+    render(data, false);
+  } catch (err) {
+    setApi("err", "unreachable");
+    errBanner.textContent = `Backend not reachable: ${err.message} — showing demo data below.`;
+    errBanner.classList.add("show");
+    render(DEMO, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "Score Triage";
+  }
+}
+</script>
+</body>
+</html>

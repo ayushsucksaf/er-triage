@@ -81,7 +81,9 @@ To run the API and frontend:
 uvicorn api:app --reload
 ```
 
-Then open `frontend/index.html` in your browser.
+Then open `http://localhost:8000/` in your browser. The API serves the frontend from
+the same origin, so opening the API root avoids a static-file 404 and does not require
+CORS configuration.
 
 ## Example output
 
