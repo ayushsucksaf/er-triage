@@ -88,9 +88,9 @@ _default_origins = "http://localhost:5500,http://127.0.0.1:5500,http://localhost
 ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_origins).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ORIGINS,
-    allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type"],
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

@@ -1,8 +1,15 @@
 """A bounded host for a local ER triage agent (educational demo)."""
 
+import atexit
 import inspect
 import json
 import logging
+import os
+import shlex
+import signal
+import subprocess
+import time
+import urllib.request
 from pathlib import Path
 
 import ollama
@@ -61,7 +68,7 @@ def dispatch(name: str, args: object) -> dict:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-def run_agent(user_query: str, client: ollama.Client | None = None) -> dict:
+def _run_agent(user_query: str, client: ollama.Client | None = None) -> dict:
     """Return the merged tool results plus the LLM summary, or {"error": ...}."""
     if not isinstance(user_query, str) or not user_query.strip():
         return {"error": "Please provide a patient description."}
@@ -142,7 +149,69 @@ def run_agent(user_query: str, client: ollama.Client | None = None) -> dict:
     return {"error": "Stopped: reached MAX_STEPS without a final answer."}
 
 
+def run_agent(user_query: str, client: ollama.Client | None = None) -> dict:
+    """Run the agent and echo the query and result in the terminal."""
+    print(f"\nQuery: {user_query}")
+    result = _run_agent(user_query, client)
+    print(json.dumps(result, indent=2))
+    return result
+
+
+OLLAMA_URL = "http://localhost:11434"
+
+
+def _ollama_up() -> bool:
+    try:
+        urllib.request.urlopen(OLLAMA_URL, timeout=1)
+        return True
+    except Exception:
+        return False
+
+
+def _stop(proc: subprocess.Popen) -> None:
+    try:
+        if os.name == "posix":
+            os.killpg(proc.pid, signal.SIGTERM)  # also stops anything a wrapper started
+        else:
+            proc.terminate()
+    except Exception:
+        pass
+
+
+def ensure_ollama() -> None:
+    """Start the Ollama server if it isn't running. Override the command with OLLAMA_CMD."""
+    if _ollama_up():
+        print("Ollama: already running.")
+        return
+    cmd = shlex.split(os.getenv("OLLAMA_CMD", "ollama serve"))
+    print(f"Ollama: not running, starting it ({' '.join(cmd)})")
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                start_new_session=(os.name == "posix"))
+    except FileNotFoundError:
+        raise SystemExit(f"Cannot start Ollama: '{cmd[0]}' not found. Install it from ollama.com.")
+    atexit.register(_stop, proc)
+    for _ in range(30):
+        if _ollama_up():
+            print("Ollama: ready.")
+            return
+        if proc.poll() is not None:
+            raise SystemExit("Ollama exited right after starting. Run it by hand to see why.")
+        time.sleep(0.5)
+    raise SystemExit("Ollama did not start within 15 seconds.")
+
+
 if __name__ == "__main__":
-    query = ("45M, ambulance, BP 180/110, HR 122, SpO2 96, "
-             "chest pain radiating to left arm")
-    print(json.dumps(run_agent(query), indent=2))
+    PORT = 8000
+    try:
+        import uvicorn
+        import api
+    except ImportError as exc:
+        raise SystemExit(
+            f"Cannot start the UI: {exc}\n"
+            "Inside backend/, run: pip install -r requirements.txt"
+        )
+    ensure_ollama()
+    print("Note: the terminal can't take a custom query. Enter it in the UI instead.")
+    print(f"UI: http://localhost:{PORT}  (every result is printed here too)\n")
+    uvicorn.run(api.app, host="127.0.0.1", port=PORT)
